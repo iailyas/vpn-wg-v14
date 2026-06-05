@@ -147,9 +147,9 @@ write_env() {
   local password="$7"
 
   {
-    echo "NGINX_PROXY_IMAGE=nginxproxy/nginx-proxy:1.11"
-    echo "ACME_COMPANION_IMAGE=nginxproxy/acme-companion:v2.6.3"
-    echo "WG_EASY_IMAGE=ghcr.io/wg-easy/wg-easy:15"
+    echo "NGINX_PROXY_IMAGE=nginxproxy/nginx-proxy:latest"
+    echo "ACME_COMPANION_IMAGE=nginxproxy/acme-companion:latest"
+    echo "WG_EASY_IMAGE=ghcr.io/wg-easy/wg-easy:latest"
     echo "WG_UI_DOMAIN=$(dotenv_value "$wg_domain")"
     echo "WG_HOST=$(dotenv_value "$host")"
     echo "WG_PORT=$port"
@@ -162,8 +162,8 @@ write_env() {
     echo "WG_ADMIN_USERNAME=$(dotenv_value "$username")"
     echo "WG_ADMIN_PASSWORD=$(dotenv_value "$password")"
     echo "LETSENCRYPT_EMAIL=$(dotenv_value "$email")"
-    echo "BESZEL_IMAGE=henrygd/beszel:v0.18.7"
-    echo "BESZEL_AGENT_IMAGE=henrygd/beszel-agent:v0.18.7"
+    echo "BESZEL_IMAGE=henrygd/beszel:latest"
+    echo "BESZEL_AGENT_IMAGE=henrygd/beszel-agent:latest"
     echo "BESZEL_DOMAIN="
     echo "BESZEL_AGENT_LISTEN=$(dotenv_value "/beszel_socket/beszel.sock")"
     echo "BESZEL_AGENT_TOKEN="

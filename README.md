@@ -5,7 +5,7 @@ nginx-proxy, and automatic Let's Encrypt certificates.
 
 The default stack is intentionally small and reproducible:
 
-- pinned production images, no `latest` tags;
+- latest upstream images for all services;
 - a static, always-valid `compose.yml`;
 - configuration through `.env`, not by mutating YAML;
 - no unattended Watchtower upgrades;
@@ -15,10 +15,10 @@ The default stack is intentionally small and reproducible:
 
 ## Components
 
-- `nginxproxy/nginx-proxy:1.11`
-- `nginxproxy/acme-companion:v2.6.3`
-- `ghcr.io/wg-easy/wg-easy:15`
-- optional Beszel monitoring profile: `henrygd/beszel:v0.18.7`
+- `nginxproxy/nginx-proxy:latest`
+- `nginxproxy/acme-companion:latest`
+- `ghcr.io/wg-easy/wg-easy:latest`
+- optional Beszel monitoring profile: `henrygd/beszel:latest`
 
 ## Requirements
 
@@ -60,7 +60,7 @@ sudo ./menu.sh
 
 Choose `2. Show status`.
 
-Update within the pinned image lines:
+Pull the latest images and restart:
 
 ```sh
 sudo ./menu.sh
@@ -99,8 +99,8 @@ docker compose --env-file .env -f compose.yml --profile monitoring up -d
 
 - `.env` is ignored by git and has mode `600` after the installer writes it.
 - Backups created by the menu are stored in `backups/`.
-- Do not use Watchtower or floating `latest` tags for this stack unless you are
-  ready to debug breaking changes after an automatic update.
+- The stack uses floating `latest` tags by request. Run updates manually and check
+  release notes before restarting production servers.
 
 ## Official References
 

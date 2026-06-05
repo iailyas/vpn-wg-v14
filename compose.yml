@@ -2,7 +2,7 @@ name: vpn-wg
 
 services:
   nginx-proxy:
-    image: ${NGINX_PROXY_IMAGE:-nginxproxy/nginx-proxy:1.11}
+    image: ${NGINX_PROXY_IMAGE:-nginxproxy/nginx-proxy:latest}
     container_name: nginx-proxy
     restart: unless-stopped
     ports:
@@ -25,7 +25,7 @@ services:
       - proxy
 
   acme-companion:
-    image: ${ACME_COMPANION_IMAGE:-nginxproxy/acme-companion:v2.6.3}
+    image: ${ACME_COMPANION_IMAGE:-nginxproxy/acme-companion:latest}
     container_name: nginx-proxy-acme
     restart: unless-stopped
     environment:
@@ -45,7 +45,7 @@ services:
       - proxy
 
   wg-easy:
-    image: ${WG_EASY_IMAGE:-ghcr.io/wg-easy/wg-easy:15}
+    image: ${WG_EASY_IMAGE:-ghcr.io/wg-easy/wg-easy:latest}
     container_name: wg-easy
     restart: unless-stopped
     ports:
@@ -91,7 +91,7 @@ services:
       - proxy
 
   beszel:
-    image: ${BESZEL_IMAGE:-henrygd/beszel:v0.18.7}
+    image: ${BESZEL_IMAGE:-henrygd/beszel:latest}
     container_name: beszel
     restart: unless-stopped
     profiles:
@@ -118,7 +118,7 @@ services:
       - proxy
 
   beszel-agent:
-    image: ${BESZEL_AGENT_IMAGE:-henrygd/beszel-agent:v0.18.7}
+    image: ${BESZEL_AGENT_IMAGE:-henrygd/beszel-agent:latest}
     container_name: beszel-agent
     restart: unless-stopped
     profiles:
