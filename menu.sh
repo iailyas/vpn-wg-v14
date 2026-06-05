@@ -132,7 +132,7 @@ random_cidr() {
 
 cidr_to_wg_default_address() {
   local cidr="$1"
-  printf '%s.x' "${cidr%0/24}"
+  printf '%s.x' "${cidr%.0/24}"
 }
 
 dotenv_value() {
