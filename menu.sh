@@ -135,6 +135,31 @@ cidr_to_wg_default_address() {
   printf '%s.x' "${cidr%.0/24}"
 }
 
+wg_easy_image() {
+  if [[ -f "$ENV_FILE" ]]; then
+    local image
+    image="$(env_get WG_EASY_IMAGE)"
+    if [[ -n "$image" ]]; then
+      printf '%s' "$image"
+      return
+    fi
+  fi
+  printf 'ghcr.io/wg-easy/wg-easy:latest'
+}
+
+wg_password_hash() {
+  local password="$1"
+  local image="$2"
+  local output hash
+  output="$(docker run --rm "$image" wgpw "$password" 2>/dev/null || true)"
+  hash="$(printf '%s\n' "$output" | sed -n "s/^PASSWORD_HASH='\(.*\)'/\1/p" | tail -n 1)"
+  if [[ -z "$hash" ]]; then
+    err "Could not generate wg-easy PASSWORD_HASH with image $image."
+    return 1
+  fi
+  printf '%s' "$hash"
+}
+
 dotenv_value() {
   local value="$1"
   value="${value//$'\n'/}"
@@ -150,6 +175,8 @@ write_env() {
   local cidr="$5"
   local username="$6"
   local password="$7"
+  local password_hash
+  password_hash="$(wg_password_hash "$password" "ghcr.io/wg-easy/wg-easy:latest")"
 
   {
     echo "NGINX_PROXY_IMAGE=nginxproxy/nginx-proxy:latest"
@@ -167,6 +194,7 @@ write_env() {
     echo "WG_INIT_ENABLED=true"
     echo "WG_ADMIN_USERNAME=$(dotenv_value "$username")"
     echo "WG_ADMIN_PASSWORD=$(dotenv_value "$password")"
+    echo "WG_PASSWORD_HASH=$(dotenv_value "$password_hash")"
     echo "LETSENCRYPT_EMAIL=$(dotenv_value "$email")"
     echo "BESZEL_IMAGE=henrygd/beszel:latest"
     echo "BESZEL_AGENT_IMAGE=henrygd/beszel-agent:latest"
@@ -334,11 +362,24 @@ update_stack() {
 reset_wg_password() {
   require_root
   load_env || return
-  local password
+  local password password_hash tmp
   password="$(prompt_secret "New WireGuard admin password, at least 12 chars: ")"
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T wg-easy \
-    cli db:admin:reset --password "$password"
-  info "WireGuard admin password was reset."
+  password_hash="$(wg_password_hash "$password" "$(wg_easy_image)")"
+  tmp="$(mktemp)"
+  awk -v hash="$password_hash" '
+    BEGIN { found = 0 }
+    /^WG_PASSWORD_HASH=/ { print "WG_PASSWORD_HASH='\''" hash "'\''"; found = 1; next }
+    { print }
+    END {
+      if (found == 0) {
+        print "WG_PASSWORD_HASH='\''" hash "'\''"
+      }
+    }
+  ' "$ENV_FILE" > "$tmp"
+  mv "$tmp" "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
+  compose up -d --force-recreate wg-easy
+  info "WireGuard admin password hash was updated and wg-easy was recreated."
 }
 
 print_menu() {
