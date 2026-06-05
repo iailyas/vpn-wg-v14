@@ -130,6 +130,11 @@ random_cidr() {
   printf '10.%s.%s.0/24' "$second" "$third"
 }
 
+cidr_to_wg_default_address() {
+  local cidr="$1"
+  printf '%s.x' "${cidr%0/24}"
+}
+
 dotenv_value() {
   local value="$1"
   value="${value//$'\n'/}"
@@ -155,6 +160,7 @@ write_env() {
     echo "WG_PORT=$port"
     echo "WG_DNS=$(dotenv_value "1.1.1.1,8.8.8.8")"
     echo "WG_IPV4_CIDR=$(dotenv_value "$cidr")"
+    echo "WG_DEFAULT_ADDRESS=$(dotenv_value "$(cidr_to_wg_default_address "$cidr")")"
     echo "WG_IPV6_CIDR=$(dotenv_value "fdcc:ad94:bacf:61a3::/64")"
     echo "WG_ALLOWED_IPS=$(dotenv_value "0.0.0.0/0")"
     echo "WG_DISABLE_IPV6=true"
