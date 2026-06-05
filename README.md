@@ -1,91 +1,116 @@
-# Automatic installation and configuration of WireGuard VPN server with web interface, node monitoring, with encryption on a free domain name
+# WireGuard VPN server with HTTPS web UI
 
-<div align="center">
-  <img src="/docs/screenshots/wg-clear.png" width="50%" /> 
-</div>
+This repository deploys a self-hosted WireGuard VPN server with the wg-easy web UI,
+nginx-proxy, and automatic Let's Encrypt certificates.
 
-[WireGuard](https://www.wireguard.com/) is an extremely simple yet fast and modern VPN that utilizes state-of-the-art cryptography. It aims to be faster, simpler, leaner, and more useful than IPsec, while avoiding the massive headache. It intends to be considerably more performant than OpenVPN. WireGuard is designed as a general purpose VPN for running on embedded interfaces and super computers alike, fit for many different circumstances. Initially released for the Linux kernel, it is now cross-platform (Windows, macOS, BSD, iOS, Android) and widely deployable. It is currently under heavy development, but already it might be regarded as the most secure, easiest to use, and simplest VPN solution in the industry.
+The default stack is intentionally small and reproducible:
 
-##
-<div align="center">
-  <img src="/docs/screenshots/new_menu.PNG" width="100%" /> 
-</div>
+- pinned production images, no `latest` tags;
+- a static, always-valid `compose.yml`;
+- configuration through `.env`, not by mutating YAML;
+- no unattended Watchtower upgrades;
+- no destructive rollback that deletes compose files or volumes;
+- wg-easy v15 unattended setup for the first admin user;
+- the initial admin password is removed from `.env` after the first successful start.
 
+## Components
 
-##
+- `nginxproxy/nginx-proxy:1.11`
+- `nginxproxy/acme-companion:v2.6.3`
+- `ghcr.io/wg-easy/wg-easy:15`
+- optional Beszel monitoring profile: `henrygd/beszel:v0.18.7`
 
+## Requirements
 
-### What does the project do? 
+- Debian or Ubuntu with `apt`
+- root access
+- public IPv4 address
+- a domain or subdomain with an A record pointing to the server
+- open inbound TCP `80` and `443`
+- open inbound UDP WireGuard port shown by the installer
 
-This project is a collection of open technologies that allows both users and administrators to run their own VPN server using automation
+## Install
 
-### What problem does it solve?
+Clone the repository and run:
 
-Economy determines politics, law, ideology. Open news from the USA, Great Britain, Germany, Russia, France, show the crisis of these countries, the economic crisis of these countries pushes to adopt laws that limit the network space. Limiting the network space entails limiting technologies, limiting access to information. Information and technologies become private, limited, and this is a light breeze before a strong storm. Destroy it, use simple setup and installation of your private network in any country where you can buy a server, and get access to technologies and information. Be prepared for the storm
-
-## Main features
-
--  Containers only (Docker)
--  Low resource consumption
--  Only 3 files to run
--  Installation and configuration via one point
--  Random VPN server port
--  Bridge network is used, after installation only ports 80 and 443 are open
--  Secure: Setting up encryption, proxying and default domain name
--  Configuring and setting default observability
--  Automatically update images and then launch the container
-
-### Thanks to these projects: [nginx-proxy](https://github.com/nginx-proxy/nginx-proxy), [letsencrypt](https://github.com/jwilder/docker-letsencrypt-nginx-proxy-companion), [wg-easy](https://github.com/wg-easy/wg-easy), [beszel](https://github.com/henrygd/beszel), [watchtower](https://github.com/containrrr/watchtower)
-
-## Installation
-
-Purchase a VPS or VDS server with the following minimum specifications: 1 CPU core, 1 GB RAM, and 15 GB of free disk space
-
-Only distributions with the APT package manager (e.g. Ubuntu or Debian) are supported
-
-``Installation and configuration tested on: Ubuntu 24.04, Ubuntu 22.04, Debian 12, Debian 11``
-
-Launch terminal with superuser rights (root) and use the command to download and run the script:
 ```sh
-curl -sL https://github.com/sergeybezlepkin/vpn-wg-v14/archive/refs/heads/main.tar.gz | tar xz && cd vpn-wg-v14-main && chmod +x menu.sh && ./menu.sh
-```
-If there is no curl and tar, we do the installation
-```sh
-apt update -qq && apt install -qq curl tar -y
+chmod +x menu.sh
+sudo ./menu.sh
 ```
 
-or
+Choose `1. Install or reconfigure VPN`.
 
-Clone the repository
+The installer asks for:
+
+- WireGuard web UI domain, for example `vpn.example.com`;
+- Let's Encrypt email;
+- initial wg-easy admin username;
+- initial wg-easy admin password.
+
+The script detects the public IPv4 address, validates DNS, chooses a high UDP port,
+starts the stack, and prints the final URL and WireGuard port.
+
+## Operations
+
+Show status:
+
 ```sh
-git clone https://github.com/sergeybezlepkin/vpn-wg-v14.git
+sudo ./menu.sh
 ```
-We go to the catalog
+
+Choose `2. Show status`.
+
+Update within the pinned image lines:
+
 ```sh
-cd vpn-wg-v14
+sudo ./menu.sh
 ```
-Make the menu.sh file executable and run it
+
+Choose `4. Pull pinned images and restart`.
+
+Reset the wg-easy admin password:
+
 ```sh
-chmod +x menu.sh && ./menu.sh
+sudo ./menu.sh
 ```
 
-After running the script, select the first item for installation and configuration. During the installation and configuration, the script will ask questions that you will need to answer.
+Choose `5. Reset WireGuard admin password`.
 
-The script also offers other actions:
+## Optional Monitoring
 
--  Reset the password of the VPN server web panel (item 2)
--  Reset the password of the web monitoring panel (item 3)
--  Remind whether the server is running and what domain names are registered (item 4)
--  Configure notifications in Telegram in the monitoring system (item 5)
+Beszel is included as an optional Compose profile, because the official Beszel flow
+requires creating the hub user and adding a system/token from the web UI.
 
-After setup and installation, the system will have the following containers
+To enable it, fill these values in `.env`:
 
-<div align="center">
-  <img src="/docs/screenshots/container.PNG" width="100%" /> 
-</div>
+```dotenv
+BESZEL_DOMAIN=monitoring.example.com
+BESZEL_AGENT_TOKEN=...
+BESZEL_AGENT_KEY=...
+```
 
-## [Download the client for your devices](https://www.wireguard.com/install/)
+Then run:
+
+```sh
+docker compose --env-file .env -f compose.yml --profile monitoring up -d
+```
+
+## Notes
+
+- `.env` is ignored by git and has mode `600` after the installer writes it.
+- Backups created by the menu are stored in `backups/`.
+- Do not use Watchtower or floating `latest` tags for this stack unless you are
+  ready to debug breaking changes after an automatic update.
+
+## Official References
+
+- wg-easy documentation: https://wg-easy.github.io/wg-easy/latest/
+- wg-easy CLI password reset: https://wg-easy.github.io/wg-easy/latest/guides/cli/
+- nginx-proxy documentation: https://github.com/nginx-proxy/nginx-proxy
+- acme-companion documentation: https://github.com/nginx-proxy/acme-companion
+- Docker Compose file reference: https://docs.docker.com/reference/compose-file/
+- Beszel documentation: https://www.beszel.dev/guide/getting-started
 
 ## License
 
-This project uses the [MIT](https://github.com/sergeybezlepkin/vpn-wg-v14/blob/main/LICENSE)
+MIT

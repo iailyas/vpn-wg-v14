@@ -1,23 +1,6 @@
-services:
-  beszel-agent:
-     image: henrygd/beszel-agent:latest
-     container_name: beszel-agent
-     restart: unless-stopped
-     deploy:
-       resources:
-         limits:
-           memory: 32M
-         reservations:
-           memory: 16M
-     volumes:
-       - /var/run/docker.sock:/var/run/docker.sock:ro
-     environment:
-       LISTEN:
-       KEY: ""
-       HUB_URL:
-     healthcheck:
-       test: ['CMD', '/agent', 'health']
-       start_period: 5s
-       retries: 3
-       interval: 120s
-     network_mode: host
+# Deprecated: Beszel is now defined as an optional `monitoring` profile in compose.yml.
+#
+# Enable it only after filling BESZEL_DOMAIN, BESZEL_AGENT_TOKEN and
+# BESZEL_AGENT_KEY in .env:
+#
+#   docker compose --profile monitoring up -d
