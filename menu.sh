@@ -130,36 +130,6 @@ random_cidr() {
   printf '10.%s.%s.0/24' "$second" "$third"
 }
 
-cidr_to_wg_default_address() {
-  local cidr="$1"
-  printf '%s.x' "${cidr%.0/24}"
-}
-
-wg_easy_image() {
-  if [[ -f "$ENV_FILE" ]]; then
-    local image
-    image="$(env_get WG_EASY_IMAGE)"
-    if [[ -n "$image" ]]; then
-      printf '%s' "$image"
-      return
-    fi
-  fi
-  printf 'ghcr.io/wg-easy/wg-easy:latest'
-}
-
-wg_password_hash() {
-  local password="$1"
-  local image="$2"
-  local output hash
-  output="$(docker run --rm "$image" wgpw "$password" 2>/dev/null || true)"
-  hash="$(printf '%s\n' "$output" | sed -n "s/^PASSWORD_HASH='\(.*\)'/\1/p" | tail -n 1)"
-  if [[ -z "$hash" ]]; then
-    err "Could not generate wg-easy PASSWORD_HASH with image $image."
-    return 1
-  fi
-  printf '%s' "$hash"
-}
-
 dotenv_value() {
   local value="$1"
   value="${value//$'\n'/}"
@@ -175,29 +145,25 @@ write_env() {
   local cidr="$5"
   local username="$6"
   local password="$7"
-  local password_hash
-  password_hash="$(wg_password_hash "$password" "ghcr.io/wg-easy/wg-easy:latest")"
 
   {
-    echo "NGINX_PROXY_IMAGE=nginxproxy/nginx-proxy:latest"
-    echo "ACME_COMPANION_IMAGE=nginxproxy/acme-companion:latest"
-    echo "WG_EASY_IMAGE=ghcr.io/wg-easy/wg-easy:latest"
+    echo "NGINX_PROXY_IMAGE=nginxproxy/nginx-proxy:1.11.0"
+    echo "ACME_COMPANION_IMAGE=nginxproxy/acme-companion:2.6.3"
+    echo "WG_EASY_IMAGE=ghcr.io/wg-easy/wg-easy:15"
     echo "WG_UI_DOMAIN=$(dotenv_value "$wg_domain")"
     echo "WG_HOST=$(dotenv_value "$host")"
     echo "WG_PORT=$port"
     echo "WG_DNS=$(dotenv_value "1.1.1.1,8.8.8.8")"
     echo "WG_IPV4_CIDR=$(dotenv_value "$cidr")"
-    echo "WG_DEFAULT_ADDRESS=$(dotenv_value "$(cidr_to_wg_default_address "$cidr")")"
     echo "WG_IPV6_CIDR=$(dotenv_value "fdcc:ad94:bacf:61a3::/64")"
     echo "WG_ALLOWED_IPS=$(dotenv_value "0.0.0.0/0")"
     echo "WG_DISABLE_IPV6=true"
     echo "WG_INIT_ENABLED=true"
     echo "WG_ADMIN_USERNAME=$(dotenv_value "$username")"
     echo "WG_ADMIN_PASSWORD=$(dotenv_value "$password")"
-    echo "WG_PASSWORD_HASH=$(dotenv_value "$password_hash")"
     echo "LETSENCRYPT_EMAIL=$(dotenv_value "$email")"
-    echo "BESZEL_IMAGE=henrygd/beszel:latest"
-    echo "BESZEL_AGENT_IMAGE=henrygd/beszel-agent:latest"
+    echo "BESZEL_IMAGE=henrygd/beszel:v0.18.7"
+    echo "BESZEL_AGENT_IMAGE=henrygd/beszel-agent:v0.18.7"
     echo "BESZEL_DOMAIN="
     echo "BESZEL_AGENT_LISTEN=$(dotenv_value "/beszel_socket/beszel.sock")"
     echo "BESZEL_AGENT_TOKEN="
@@ -362,24 +328,10 @@ update_stack() {
 reset_wg_password() {
   require_root
   load_env || return
-  local password password_hash tmp
+  local password
   password="$(prompt_secret "New WireGuard admin password, at least 12 chars: ")"
-  password_hash="$(wg_password_hash "$password" "$(wg_easy_image)")"
-  tmp="$(mktemp)"
-  awk -v hash="$password_hash" '
-    BEGIN { found = 0 }
-    /^WG_PASSWORD_HASH=/ { print "WG_PASSWORD_HASH='\''" hash "'\''"; found = 1; next }
-    { print }
-    END {
-      if (found == 0) {
-        print "WG_PASSWORD_HASH='\''" hash "'\''"
-      }
-    }
-  ' "$ENV_FILE" > "$tmp"
-  mv "$tmp" "$ENV_FILE"
-  chmod 600 "$ENV_FILE"
-  compose up -d --force-recreate wg-easy
-  info "WireGuard admin password hash was updated and wg-easy was recreated."
+  compose exec -T wg-easy cli db:admin:reset --password "$password"
+  info "WireGuard admin password was reset."
 }
 
 print_menu() {
